@@ -138,17 +138,13 @@ func Marketplace(cmd *Commandline) {
 func getServiceIDPlanID(servicename string) (*ProvisonPayload, error) {
 	sb := NewSBClient()
 
-	services, err := sb.Instances()
+	instance, err := sb.Instance(servicename)
 	CheckErr(err)
 
-	for _, service := range services.Resources {
-		if service.GUIDAtTenant == servicename {
-			payload := ProvisonPayload{ServiceID: service.ServiceGUID, PlanID: service.PlanGUID, SpaceGUID: service.Metadata.SpaceGUID, OrganizationGUID: service.Metadata.OrganizationGUID}
-			payload.Context.OrganizationID = service.Metadata.OrganizationGUID
-			payload.Context.SpaceID = service.Metadata.SpaceGUID
-			return &payload, nil
-		}
-	}
+	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: instance.Metadata.SpaceGUID, OrganizationGUID: instance.Metadata.OrganizationGUID}
+	payload.Context.OrganizationID = instance.Metadata.OrganizationGUID
+	payload.Context.SpaceID = instance.Metadata.SpaceGUID
+	return &payload, nil
 
 	return nil, errors.New("Service not found!")
 }
