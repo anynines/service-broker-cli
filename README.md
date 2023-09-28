@@ -121,6 +121,7 @@ $ SB_HOST="http://redis-service-broker.service.dc1.consul:3000/" SB_USERNAME="ad
 | SB_USERNAME | The username |
 | SB_PASSWORD | The password |
 | SB_SKIP_SSL_VERIFY | If true SSL verification is skipped |
+| SB_TIMEOUT | HTTP Timeout in seconds (default: 15) |
 
 
 ## Logging

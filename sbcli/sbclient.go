@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -47,7 +48,13 @@ func (s *SBClient) TestConnection() error {
 		fmt.Printf("\tTest host: %s\n", s.Host)
 	}
 
-	client := http.Client{Timeout: 15 * time.Second}
+	timeout := 15
+	val, present := os.LookupEnv("SB_TIMEOUT")
+	if present == true {
+		timeout, _ = strconv.Atoi(val)
+	}
+
+	client := http.Client{Timeout: time.Duration(timeout) * time.Second}
 
 	if s.isHttps() {
 		client.Transport = &http.Transport{
@@ -129,7 +136,13 @@ func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string
 		fmt.Printf("\tBody:\n\t%s\n", jsonStr)
 	}
 
-	client := http.Client{Timeout: 15 * time.Second}
+	timeout := 15
+	val, present := os.LookupEnv("SB_TIMEOUT")
+	if present == true {
+		timeout, _ = strconv.Atoi(val)
+	}
+
+	client := http.Client{Timeout: time.Duration(timeout) * time.Second}
 
 	if s.isHttps() {
 		if os.Getenv("SB_TRACE") == "ON" {
