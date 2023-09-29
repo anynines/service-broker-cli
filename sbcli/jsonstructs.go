@@ -45,12 +45,7 @@ type Credential struct {
 }
 
 type Instances struct {
-	TotalResults int                `json:"total_results"`
-	TotalPages   int                `json:"total_pages"`
-	CurrentPage  int                `json:"current_page"`
-	PrevURL      interface{}        `json:"prev_url"`
-	NextURL      interface{}        `json:"next_url"`
-	Resources    []InstanceResource `json:"resources"`
+	Resources []InstanceResource `json:"resources"`
 }
 
 type ServicePlan struct {
@@ -126,4 +121,12 @@ type CustomPaylod struct {
 type SBError struct {
 	Description string `json:"description"`
 	Error       string `json:"error"`
+}
+
+type InstancesResponse struct {
+	TotalResults int                `json:"total_results"`
+	TotalPages   int                `json:"total_pages"`
+	PrevURL      string             `json:"prev_url"`
+	NextURL      string             `json:"next_url"`
+	Resources    []InstanceResource `json:"resources"`
 }
