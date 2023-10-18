@@ -95,17 +95,34 @@ func (s *SBClient) TestConnection() error {
 } */
 
 func (s *SBClient) Instances() (*Instances, error) {
-	result, _, _, err := s.getResultFromBroker("instances", "GET", "{}")
-	if err != nil {
-		return nil, err
+	var instanceResources []InstanceResource
+	next_url := "v2/instances?results_per_page=5000"
+	next_url_exists := true
+	for next_url_exists == true {
+		var response InstancesResponse
+		result, _, _, err := s.getResultFromBroker(next_url, "GET", "{}")
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(result, &response)
+		if err != nil {
+			return nil, err
+		}
+
+		instanceResources = append(instanceResources, response.Resources...)
+
+		if string(response.NextURL) == "" {
+			next_url_exists = false
+		}
+		if next_url_exists == true {
+			next_url = response.NextURL
+		}
 	}
 
 	var i = new(Instances)
-	err = json.Unmarshal(result, &i)
-	if err != nil {
-		return nil, err
-	}
-	return i, err
+	i.Resources = instanceResources
+	return i, nil
 }
 
 func (s *SBClient) Instance(instanceId string) (*InstanceResource, error) {
