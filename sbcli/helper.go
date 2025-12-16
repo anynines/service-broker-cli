@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid/v5"	
 
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -32,7 +32,10 @@ func getPassword(prompt string) (password string, err error) {
 }
 
 func GetUUID() string {
-	uuid := uuid.NewV4()
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		log.Fatalf("failed to generate UUID: %v", err)
+	}
 	return uuid.String()
 }
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/phartz/service-broker-cli/sbcli"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid/v5"
 )
 
 func TestCleanTargetUIR(t *testing.T) {
