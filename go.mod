@@ -1,9 +1,13 @@
 module github.com/phartz/service-broker-cli
 
-go 1.13
+go 1.24.0
 
 require (
-	github.com/satori/go.uuid v1.2.0
-	golang.org/x/crypto v0.8.0
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	github.com/gofrs/uuid/v5 v5.4.0
+	golang.org/x/crypto v0.46.0
+)
+
+require (
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
 )
