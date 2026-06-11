@@ -148,6 +148,6 @@ func Login(cmd *Commandline) {
 		conf.save()
 		fmt.Printf("Target:            %s\n", conf.Host)
 		fmt.Printf("Username:          %s\n", conf.Username)
-		fmt.Printf("SkipSSLValidation: %d\n", conf.SkipSslValidation)
+		fmt.Printf("SkipSSLValidation: %t\n", conf.SkipSslValidation)
 	}
 }

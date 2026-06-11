@@ -74,7 +74,7 @@ func (s *SBClient) TestConnection() error {
 
 	if os.Getenv("SB_TRACE") == "ON" {
 		fmt.Println("")
-		fmt.Println("\tStatus: OK\n")
+		fmt.Print("\tStatus: OK\n")
 	}
 	defer resp.Body.Close()
 	return nil
@@ -139,10 +139,12 @@ func (s *SBClient) Instance(instanceId string) (*InstanceResource, error) {
 	return i, err
 }
 
-func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string) (bytes []byte, statusCode int, status string, err error) {
+// doRequest performs the raw HTTP request and returns the response body, status code,
+// status string, and any transport-level error. It does NOT parse broker error payloads.
+func (s *SBClient) doRequest(url string, method string, jsonStr string) (result []byte, statusCode int, status string, err error) {
 	statusCode = 0
 	status = ""
-	bytes = nil
+	result = nil
 	body := strings.NewReader(jsonStr)
 	target := fmt.Sprintf("%s/%s", s.Host, url)
 
@@ -188,10 +190,9 @@ func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string
 	if s.Username != "" {
 		req.SetBasicAuth(s.Username, s.Password)
 	}
-	req.Header.Set("Content-Type", "application/json") //"application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
-
 	if err != nil {
 		if os.Getenv("SB_TRACE") == "ON" {
 			fmt.Printf("\tError:\n\t%s\n", err.Error())
@@ -204,11 +205,21 @@ func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string
 	status = resp.Status
 	statusCode = resp.StatusCode
 
-	bytes, err = ioutil.ReadAll(resp.Body)
+	result, err = ioutil.ReadAll(resp.Body)
 	if os.Getenv("SB_TRACE") == "ON" {
 		fmt.Println("\tResult:")
 		fmt.Printf("\tStatus: %d/%s\n", resp.StatusCode, resp.Status)
-		fmt.Printf("\tBody:\n\t%s\n", string(bytes))
+		fmt.Printf("\tBody:\n\t%s\n", string(result))
+	}
+	return
+}
+
+// getResultFromBroker performs a request and additionally parses broker error payloads
+// from the response body, returning an error if the broker reported one.
+func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string) (bytes []byte, statusCode int, status string, err error) {
+	bytes, statusCode, status, err = s.doRequest(url, method, jsonStr)
+	if err != nil {
+		return
 	}
 
 	var sbError = new(SBError)
@@ -221,83 +232,123 @@ func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string
 	return
 }
 
-func (s *SBClient) Deprovision(data *BindPayload, instanceID string) error {
-	_, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s?service_id=%s&plan_id=%s", instanceID, data.ServiceID, data.PlanID), "DELETE", "{}")
+// LastOperation polls GET /v2/service_instances/:id/last_operation and returns the result.
+// It uses doRequest directly so that an informational "description" field in the response
+// is not mistakenly treated as a broker error.
+func (s *SBClient) LastOperation(instanceID string, operation string) (*LastOperationResponse, int, error) {
+	path := fmt.Sprintf("v2/service_instances/%s/last_operation", instanceID)
+	if operation != "" {
+		path += "?operation=" + operation
+	}
+	bytes, statusCode, _, err := s.doRequest(path, "GET", "{}")
 	if err != nil {
-		return err
+		return nil, statusCode, err
+	}
+	var resp LastOperationResponse
+	if err = json.Unmarshal(bytes, &resp); err != nil {
+		return nil, statusCode, err
+	}
+	return &resp, statusCode, nil
+}
+
+func (s *SBClient) Deprovision(data *BindPayload, instanceID string) (int, string, error) {
+	bytes, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s?service_id=%s&plan_id=%s&accepts_incomplete=true", instanceID, data.ServiceID, data.PlanID), "DELETE", "{}")
+	if err != nil {
+		return statusCode, "", err
 	}
 
 	if statusCode >= 200 && statusCode <= 202 {
-		return nil
+		var resp ProvisionResponse
+		json.Unmarshal(bytes, &resp)
+		return statusCode, resp.Operation, nil
 	}
 
-	return errors.New(fmt.Sprintf("Deprovision failure code: %d/%s", statusCode, status))
+	return statusCode, "", errors.New(fmt.Sprintf("Deprovision failure code: %d/%s", statusCode, status))
 }
 
-func (s *SBClient) UpdateService(data *UpdatePayload, instanceID string) error {
-	bytes, _ := json.Marshal(data)
+func (s *SBClient) UpdateService(data *UpdatePayload, instanceID string) (int, string, error) {
+	payloadBytes, _ := json.Marshal(data)
 
-	_, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s", instanceID), "PATCH", string(bytes))
-
+	resultBytes, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s?accepts_incomplete=true", instanceID), "PATCH", string(payloadBytes))
 	if err != nil {
-		return err
+		return statusCode, "", err
 	}
 
 	if statusCode >= 200 && statusCode <= 202 {
-		return nil
+		var resp ProvisionResponse
+		json.Unmarshal(resultBytes, &resp)
+		return statusCode, resp.Operation, nil
 	}
 
-	return errors.New(fmt.Sprintf("Deprovision failure code: %d/%s", statusCode, status))
+	return statusCode, "", errors.New(fmt.Sprintf("Update failure code: %d/%s", statusCode, status))
 }
 
-func (s *SBClient) Provision(data *ProvisonPayload, instanceID string) error {
+func (s *SBClient) Provision(data *ProvisonPayload, instanceID string) (int, string, error) {
 	payloadBytes, err := json.Marshal(data)
-
-	_, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s", instanceID), "PUT", string(payloadBytes))
 	if err != nil {
-		return err
+		return 0, "", err
+	}
+
+	resultBytes, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s?accepts_incomplete=true", instanceID), "PUT", string(payloadBytes))
+	if err != nil {
+		return statusCode, "", err
 	}
 
 	if statusCode >= 200 && statusCode <= 202 {
-		return nil
+		var resp ProvisionResponse
+		json.Unmarshal(resultBytes, &resp)
+		return statusCode, resp.Operation, nil
 	}
 
-	return errors.New(fmt.Sprintf("Provision failure code: %d/%s", statusCode, status))
+	return statusCode, "", errors.New(fmt.Sprintf("Provision failure code: %d/%s", statusCode, status))
 }
 
-func (s *SBClient) Bind(data *BindPayload, instanceID string, bindID string) (string, error) {
+func (s *SBClient) Bind(data *BindPayload, instanceID string, bindID string) (int, string, string, error) {
 	payloadBytes, err := json.Marshal(data)
-
-	bytes, _, _, err := s.getResultFromBroker(fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", instanceID, bindID), "PUT", string(payloadBytes))
 	if err != nil {
-		return "", err
+		return 0, "", "", err
 	}
 
-	var sbError = new(SBError)
-	err = json.Unmarshal(bytes, &sbError)
-
+	resultBytes, statusCode, status, err := s.doRequest(fmt.Sprintf("v2/service_instances/%s/service_bindings/%s?accepts_incomplete=true", instanceID, bindID), "PUT", string(payloadBytes))
 	if err != nil {
-		return "", err
+		return statusCode, "", "", err
 	}
 
-	if sbError != nil && sbError.Error != "" {
-		return "", errors.New(sbError.Error)
+	// Parse broker error (but not on 202 where body contains operation, not an error)
+	if statusCode != 202 {
+		var sbError SBError
+		if json.Unmarshal(resultBytes, &sbError) == nil && (sbError.Error != "" || sbError.Description != "") {
+			return statusCode, "", "", errors.New(fmt.Sprintf("%s / %s", sbError.Description, sbError.Error))
+		}
 	}
 
-	return string(bytes), nil
+	if statusCode >= 200 && statusCode <= 202 {
+		var resp ProvisionResponse
+		json.Unmarshal(resultBytes, &resp)
+		return statusCode, resp.Operation, string(resultBytes), nil
+	}
+
+	return statusCode, "", "", errors.New(fmt.Sprintf("Bind failure code: %d/%s", statusCode, status))
 }
 
-func (s *SBClient) UnBind(data *BindPayload, instanceID string, bindID string) error {
-	_, statusCode, status, err := s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s/service_bindings/%s?service_id=%s&plan_id=%s", instanceID, bindID, data.ServiceID, data.PlanID), "DELETE", "{}")
+func (s *SBClient) UnBind(data *BindPayload, instanceID string, bindID string) (int, string, error) {
+	resultBytes, statusCode, status, err := s.doRequest(fmt.Sprintf("v2/service_instances/%s/service_bindings/%s?service_id=%s&plan_id=%s&accepts_incomplete=true", instanceID, bindID, data.ServiceID, data.PlanID), "DELETE", "{}")
 	if err != nil {
-		return err
+		return statusCode, "", err
 	}
 
-	if statusCode == 200 {
-		return nil
+	if statusCode >= 200 && statusCode <= 202 {
+		var resp ProvisionResponse
+		json.Unmarshal(resultBytes, &resp)
+		return statusCode, resp.Operation, nil
 	}
 
-	return errors.New(fmt.Sprintf("Unbind failure code: %d/%s", statusCode, status))
+	// 410 Gone means already deleted
+	if statusCode == 410 {
+		return statusCode, "", nil
+	}
+
+	return statusCode, "", errors.New(fmt.Sprintf("Unbind failure code: %d/%s", statusCode, status))
 }
 
 // creates the Servicebroker client, in later version the user credentials should be read out of a file

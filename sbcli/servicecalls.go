@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 // Get plan ID from plan name
@@ -119,7 +121,7 @@ func Marketplace(cmd *Commandline) {
 	catalog, err := sb.Catalog()
 	CheckErr(err)
 
-	fmt.Println("OK\n")
+	fmt.Print("OK\n")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintf(w, "service\tplans\tdescription\n")
 	for _, service := range catalog.Services {
@@ -133,6 +135,53 @@ func Marketplace(cmd *Commandline) {
 	}
 	w.Flush()
 	fmt.Println("")
+}
+
+// pollLastOperation polls the last_operation endpoint until the operation reaches a
+// terminal state (succeeded or failed) and prints progress to stdout.
+// For async delete operations, HTTP 410 Gone is treated as success.
+func pollLastOperation(sb *SBClient, instanceID string, operation string) {
+	encodedOp := url.QueryEscape(operation)
+	fmt.Printf("Waiting for operation to complete")
+	for {
+		time.Sleep(5 * time.Second)
+		resp, statusCode, err := sb.LastOperation(instanceID, encodedOp)
+		if err != nil {
+			fmt.Printf("\nError polling last operation: %s\n", err)
+			return
+		}
+		// 410 Gone means the instance was deleted successfully
+		if statusCode == 410 {
+			fmt.Printf("\nOK\n")
+			return
+		}
+		if resp == nil {
+			fmt.Printf("\nError: empty last_operation response\n")
+			return
+		}
+		switch resp.State {
+		case "succeeded":
+			fmt.Printf("\nOK\n")
+			if resp.Description != "" {
+				fmt.Printf("%s\n", resp.Description)
+			}
+			return
+		case "failed":
+			fmt.Printf("\nFailed!\n")
+			if resp.Description != "" {
+				fmt.Printf("Error: %s\n", resp.Description)
+			}
+			os.Exit(1)
+		case "in progress":
+			if resp.Description != "" {
+				fmt.Printf("\n  %s", resp.Description)
+			} else {
+				fmt.Printf(".")
+			}
+		default:
+			fmt.Printf(".")
+		}
+	}
 }
 
 func getServiceIDPlanID(servicename string) (*ProvisonPayload, error) {
@@ -220,8 +269,6 @@ func serviceImpl(serviceName string) {
 	fmt.Printf("VM details: {%v}\n", service.VMDetails)
 
 	return
-
-	CheckErr(errors.New("Service instance not found."))
 }
 
 func CreateService(cmd *Commandline) {
@@ -285,12 +332,21 @@ func CreateService(cmd *Commandline) {
 		data.Parameters = getJSONFromCustom(cmd.Custom)
 	}
 
-	err = sb.Provision(&data, serviceName)
+	statusCode, operation, err := sb.Provision(&data, serviceName)
 	CheckErr(err)
 
-	fmt.Printf("OK\n\n")
+	switch statusCode {
+	case 201:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Service %s created successfully.\n", serviceName)
+	case 202:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Create in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", serviceName)
 
-	fmt.Printf("Create in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", serviceName)
+		if cmd.Wait {
+			pollLastOperation(sb, serviceName, operation)
+		}
+	}
 }
 
 func DeleteService(cmd *Commandline) {
@@ -319,13 +375,22 @@ func DeleteService(cmd *Commandline) {
 
 	payload := BindPayload{ServiceID: data.ServiceID, PlanID: data.PlanID}
 
-	err = sb.Deprovision(&payload, cmd.Options[0])
+	statusCode, operation, err := sb.Deprovision(&payload, cmd.Options[0])
 	CheckErr(err)
 
 	fmt.Printf("Deleting service %s at %s as %s...\n", cmd.Options[0], sb.Host, sb.Username)
-	fmt.Printf("OK\n\n")
+	switch statusCode {
+	case 200:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Service %s deleted successfully.\n", cmd.Options[0])
+	case 202:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Delete in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", cmd.Options[0])
 
-	fmt.Printf("Delete in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", cmd.Options[0])
+		if cmd.Wait {
+			pollLastOperation(sb, cmd.Options[0], operation)
+		}
+	}
 }
 
 func UpdateService(cmd *Commandline) {
@@ -361,11 +426,19 @@ func UpdateService(cmd *Commandline) {
 		payload.Parameters = getJSONFromCustom(cmd.Custom)
 	}
 
-	err = sb.UpdateService(&payload, cmd.Options[0])
+	statusCode, operation, err := sb.UpdateService(&payload, cmd.Options[0])
 	CheckErr(err)
 
-	fmt.Printf("Updating service %s at %s as %s...\n", cmd.Options[0], sb.Host, sb.Username)
-	fmt.Printf("OK\n\n")
+	switch statusCode {
+	case 201:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Service %s updated successfully.\n", cmd.Options[0])
+	case 202:
+		fmt.Printf("OK\n\n")
+		fmt.Printf("Update in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", cmd.Options[0])
 
-	fmt.Printf("Update in progress. Use 'sb services' or 'sb service %s' to check operation status.\n", cmd.Options[0])
+		if cmd.Wait {
+			pollLastOperation(sb, cmd.Options[0], operation)
+		}
+	}
 }

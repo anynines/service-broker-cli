@@ -85,7 +85,7 @@ func Help(cmd *sbcli.Commandline) {
 
 // prints the usage text
 func usage() {
-	fmt.Println(sbcli.UsageText)
+	fmt.Print(sbcli.UsageText)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintf(w, "command\tshortcut\tdescription\n")
 	for _, command := range sbcommands {
