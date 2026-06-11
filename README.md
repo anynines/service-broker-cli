@@ -7,6 +7,7 @@ This documentation contains the following topics.
 
 - [Table of Contents](#table-of-contents)
 - [Download, Build and Install](#download-build-and-install)
+- [Publish a Release](#publish-a-release)
 - [Usage](#usage)
 - [Restrictions](#restrictions)
 - [Target and login](#target-and-login)
@@ -29,6 +30,39 @@ make install
 ```
 
 Either add the `$GOPATH/bin` `export PATH=$PATH:$GOPATH/bin` to your `$PATH` or copy the cli to your bin folder `cp sb /usr/local/bin`
+
+## Publish a Release
+
+Releases are published automatically by GitHub Actions when a new Git tag is pushed.
+The workflow builds binaries for Linux, Windows and macOS (Intel and Apple Silicon),
+creates a GitHub Release, generates release notes and uploads the binaries as assets.
+
+### Steps
+
+1. Make sure your changes are merged and pushed.
+2. Create a new tag (example):
+
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+```
+
+3. Push the tag:
+
+```bash
+git push origin v1.2.3
+```
+
+4. Open the repository in GitHub and wait for the `Release` workflow to finish.
+5. Open the new GitHub Release to verify attached binaries.
+
+### Produced binaries
+
+The workflow uploads these target binaries to the release:
+
+- `sb_<tag>_linux_amd64`
+- `sb_<tag>_windows_amd64.exe`
+- `sb_<tag>_darwin_amd64`
+- `sb_<tag>_darwin_arm64`
 
 ## Usage
 ```
