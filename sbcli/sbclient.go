@@ -126,9 +126,16 @@ func (s *SBClient) Instances() (*Instances, error) {
 }
 
 func (s *SBClient) Instance(instanceId string) (*InstanceResource, error) {
-	result, _, _, err := s.getResultFromBroker(fmt.Sprintf("instances/%s", instanceId), "GET", "{}")
+	result, statusCode, _, err := s.getResultFromBroker(fmt.Sprintf("instances/%s", instanceId), "GET", "{}")
 	if err != nil {
-		return nil, err
+		if statusCode == http.StatusNotFound {
+			result, _, _, err = s.getResultFromBroker(fmt.Sprintf("v2/service_instances/%s", instanceId), "GET", "{}")
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	var i = new(InstanceResource)
