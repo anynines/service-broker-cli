@@ -50,6 +50,25 @@ func CreateServiceKey(cmd *Commandline) {
 	}
 }
 
+func ServiceKey(cmd *Commandline) {
+	sb := NewSBClient()
+
+	if len(cmd.Options) != 2 {
+		CheckErr(errors.New("Missing arguments!"), GetHelpText("ServiceKey"))
+	}
+
+	fmt.Printf("Getting service key %s for service instance %s as %s...\n\n", cmd.Options[1], cmd.Options[0], sb.Username)
+
+	result, statusCode, err := sb.GetServiceKey(cmd.Options[0], cmd.Options[1])
+	CheckErr(err)
+
+	if statusCode == 200 {
+		fmt.Println(prettyPrintJson(string(result)))
+	} else {
+		CheckErr(errors.New(fmt.Sprintf("Failed to retrieve service key: status code %d", statusCode)))
+	}
+}
+
 func ServiceKeys(cmd *Commandline) {
 	sb := NewSBClient()
 

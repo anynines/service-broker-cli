@@ -66,6 +66,7 @@ func registerCommands() {
 	addCommand("delete-service", "ds", "Delete a service instance", sbcli.DeleteService)
 	addCommand("", "", "", nil)
 	addCommand("create-service-key", "csk", "Create key for a service instance", sbcli.CreateServiceKey)
+	addCommand("service-key", "", "Get a service key for a service instance", sbcli.ServiceKey)
 	addCommand("service-keys", "sk", "List keys for a service instance", sbcli.ServiceKeys)
 	addCommand("delete-service-key", "dsk", "Delete a service key", sbcli.DeleteServiceKey)
 }

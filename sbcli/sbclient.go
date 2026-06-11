@@ -239,6 +239,16 @@ func (s *SBClient) getResultFromBroker(url string, method string, jsonStr string
 	return
 }
 
+// GetServiceKey retrieves a specific service key (binding) for a service instance.
+func (s *SBClient) GetServiceKey(instanceID string, keyID string) ([]byte, int, error) {
+	path := fmt.Sprintf("v2/service_instances/%s/service_bindings/%s", instanceID, keyID)
+	bytes, statusCode, _, err := s.doRequest(path, "GET", "{}")
+	if err != nil {
+		return nil, statusCode, err
+	}
+	return bytes, statusCode, nil
+}
+
 // LastOperation polls GET /v2/service_instances/:id/last_operation and returns the result.
 // It uses doRequest directly so that an informational "description" field in the response
 // is not mistakenly treated as a broker error.
