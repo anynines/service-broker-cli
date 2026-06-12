@@ -33,14 +33,40 @@ func CreateServiceKey(cmd *Commandline) {
 		payload.Parameters = getJSONFromCustom(cmd.Custom)
 	}
 
-	result, err := sb.Bind(&payload, cmd.Options[0], cmd.Options[1])
+	statusCode, operation, result, err := sb.Bind(&payload, cmd.Options[0], cmd.Options[1])
 	CheckErr(err)
 
-	if !cmd.JSON {
-		fmt.Println("OK\n\n")
+	if statusCode == 202 && cmd.Wait {
+		if !cmd.JSON {
+			pollLastOperation(sb, cmd.Options[0], operation)
+		}
+	} else {
+		if !cmd.JSON {
+			fmt.Print("OK\n\n")
+		}
+		if result != "" {
+			fmt.Println(prettyPrintJson(result))
+		}
+	}
+}
+
+func ServiceKey(cmd *Commandline) {
+	sb := NewSBClient()
+
+	if len(cmd.Options) != 2 {
+		CheckErr(errors.New("Missing arguments!"), GetHelpText("ServiceKey"))
 	}
 
-	fmt.Println(prettyPrintJson(result))
+	fmt.Printf("Getting service key %s for service instance %s as %s...\n\n", cmd.Options[1], cmd.Options[0], sb.Username)
+
+	result, statusCode, err := sb.GetServiceKey(cmd.Options[0], cmd.Options[1])
+	CheckErr(err)
+
+	if statusCode == 200 {
+		fmt.Println(prettyPrintJson(string(result)))
+	} else {
+		CheckErr(errors.New(fmt.Sprintf("Failed to retrieve service key: status code %d", statusCode)))
+	}
 }
 
 func ServiceKeys(cmd *Commandline) {
@@ -96,8 +122,12 @@ func DeleteServiceKey(cmd *Commandline) {
 
 	var payload = BindPayload{PlanID: data.PlanID, ServiceID: data.ServiceID}
 
-	err = sb.UnBind(&payload, cmd.Options[0], cmd.Options[1])
+	statusCode, operation, err := sb.UnBind(&payload, cmd.Options[0], cmd.Options[1])
 	CheckErr(err)
 
-	fmt.Println("OK\n")
+	if statusCode == 202 && cmd.Wait {
+		pollLastOperation(sb, cmd.Options[0], operation)
+	} else {
+		fmt.Print("OK\n")
+	}
 }

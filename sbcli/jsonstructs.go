@@ -123,6 +123,18 @@ type SBError struct {
 	Error       string `json:"error"`
 }
 
+// ProvisionResponse is the body returned by a 201/202 provision or deprovision request.
+type ProvisionResponse struct {
+	DashboardURL string `json:"dashboard_url"`
+	Operation    string `json:"operation"`
+}
+
+// LastOperationResponse is the body returned by GET /v2/service_instances/:id/last_operation.
+type LastOperationResponse struct {
+	State       string `json:"state"`
+	Description string `json:"description"`
+}
+
 type InstancesResponse struct {
 	TotalResults int                `json:"total_results"`
 	TotalPages   int                `json:"total_pages"`

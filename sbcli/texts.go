@@ -82,6 +82,12 @@ func GetHelpText(command string) string {
 			"OPTIONS:\n" +
 			"   -c      Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.\n" +
 			"   -j      Print only JSON output\n"
+	case "service-key":
+		return "NAME:\n" +
+			"   service-key - Get a service key for a service instance\n" +
+			"\n" +
+			"USAGE:\n" +
+			"   sb service-key SERVICE_INSTANCE SERVICE_KEY\n"
 	case "service-keys", "sk":
 		return "NAME:\n" +
 			"   service-keys - List keys for a service instance\n" +

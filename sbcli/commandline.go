@@ -12,6 +12,7 @@ type Commandline struct {
 	Options           []string
 	NoOptions         bool
 	Force             bool
+	Wait              bool
 	Plan              string
 	Tags              string
 	Custom            string
@@ -58,6 +59,7 @@ func (c *Commandline) Parse(options []string) (err error) {
 
 	flagSet := flag.NewFlagSet("flags", flag.ExitOnError)
 	force := flagSet.Bool("f", false, "")
+	wait := flagSet.Bool("w", false, "")
 	plan := flagSet.String("p", "", "")
 	tags := flagSet.String("t", "", "")
 	custom := flagSet.String("c", "", "")
@@ -69,6 +71,7 @@ func (c *Commandline) Parse(options []string) (err error) {
 
 	flagSet.Parse(options[flagPos:])
 	c.Force = *force
+	c.Wait = *wait
 	c.Plan = *plan
 	c.Tags = *tags
 	c.Custom = c.checkCustom(*custom)
