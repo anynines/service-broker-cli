@@ -1,21 +1,24 @@
 package sbcli
 
+import "encoding/json"
+
 type InstanceResource struct {
-	ID             int          `json:"id"`
-	PlanGUID       string       `json:"plan_guid"`
-	ServiceGUID    string       `json:"service_guid"`
-	Metadata       Metadata     `json:"metadata"`
-	DashboardURL   interface{}  `json:"dashboard_url"`
-	DeploymentName interface{}  `json:"deployment_name"`
-	State          string       `json:"state"`
-	GUIDAtTenant   string       `json:"guid_at_tenant"`
-	TenantID       string       `json:"tenant_id"`
-	ProvisionedAt  string       `json:"provisioned_at"`
-	DeletedAt      string       `json:"deleted_at"`
-	CreatedAt      string       `json:"created_at"`
-	UpdatedAt      string       `json:"updated_at"`
-	Credentials    []Credential `json:"credentials"`
-	VMDetails      interface{}  `json:"vm_details"`
+	ID             int            `json:"id"`
+	PlanGUID       string         `json:"plan_guid"`
+	ServiceGUID    string         `json:"service_guid"`
+	Metadata       Metadata       `json:"metadata"`
+	Context        ContextPayload `json:"context"`
+	DashboardURL   interface{}    `json:"dashboard_url"`
+	DeploymentName string         `json:"deployment_name"`
+	State          string         `json:"state"`
+	GUIDAtTenant   string         `json:"guid_at_tenant"`
+	TenantID       string         `json:"tenant_id"`
+	ProvisionedAt  string         `json:"provisioned_at"`
+	DeletedAt      string         `json:"deleted_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
+	Credentials    []Credential   `json:"credentials"`
+	VMDetails      interface{}    `json:"vm_details"`
 }
 
 type VMDetails struct {
@@ -80,12 +83,12 @@ type LastState struct {
 }
 
 type ProvisonPayload struct {
-	OrganizationGUID string        `json:"organization_guid"`
-	PlanID           string        `json:"plan_id"`
-	ServiceID        string        `json:"service_id"`
-	SpaceGUID        string        `json:"space_guid"`
-	Parameters       interface{}   `json:"parameters"`
-	Context          ContextPaylod `json:"context"`
+	OrganizationGUID string         `json:"organization_guid"`
+	PlanID           string         `json:"plan_id"`
+	ServiceID        string         `json:"service_id"`
+	SpaceGUID        string         `json:"space_guid"`
+	Parameters       interface{}    `json:"parameters"`
+	Context          ContextPayload `json:"context"`
 }
 
 type UpdatePayload struct {
@@ -93,12 +96,43 @@ type UpdatePayload struct {
 	PlanID         string               `json:"plan_id"`
 	Parameters     interface{}          `json:"parameters"`
 	PreviousValues PreviousUpdateValues `json:"previous_values"`
-	Context        ContextPaylod        `json:"context"`
+	Context        ContextPayload       `json:"context"`
 }
 
-type ContextPaylod struct {
-	OrganizationID string `json:"organization_id"`
-	SpaceID        string `json:"space_id"`
+type ContextPayload struct {
+	Platform         string `json:"platform"`
+	OrganizationGUID string `json:"organization_guid"`
+	SpaceGUID        string `json:"space_guid"`
+	OrganizationName string `json:"organization_name"`
+	SpaceName        string `json:"space_name"`
+	InstanceName     string `json:"instance_name"`
+}
+
+// UnmarshalJSON is invoked implicitly by encoding/json when decoding
+// InstanceResource and related payloads. It preserves compatibility with
+// legacy context fields organization_id/space_id by mapping them to
+// organization_guid/space_guid when the CF fields are missing.
+func (c *ContextPayload) UnmarshalJSON(data []byte) error {
+	type alias ContextPayload
+	aux := struct {
+		alias
+		OrganizationID string `json:"organization_id"`
+		SpaceID        string `json:"space_id"`
+	}{}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	*c = ContextPayload(aux.alias)
+	if c.OrganizationGUID == "" {
+		c.OrganizationGUID = aux.OrganizationID
+	}
+	if c.SpaceGUID == "" {
+		c.SpaceGUID = aux.SpaceID
+	}
+
+	return nil
 }
 
 type PreviousUpdateValues struct {

@@ -76,11 +76,14 @@ func Services(cmd *Commandline) {
 		}
 
 		deploymentName := "./."
-		if service.DeploymentName != nil {
-			deploymentName = service.DeploymentName.(string)
+		if service.DeploymentName != "" {
+			deploymentName = service.DeploymentName
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", service.GUIDAtTenant, catalogService[service.ServiceGUID].Name, planName, "./.", service.State, deploymentName, service.Metadata.OrganizationGUID, service.Metadata.SpaceGUID)
+		orgGUID := service.Context.OrganizationGUID
+		spaceGUID := service.Context.SpaceGUID
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", service.GUIDAtTenant, catalogService[service.ServiceGUID].Name, planName, "./.", service.State, deploymentName, orgGUID, spaceGUID)
 	}
 	w.Flush()
 	fmt.Println("")
@@ -99,7 +102,7 @@ func FindService(cmd *Commandline) {
 	services, err := sb.Instances()
 	CheckErr(err)
 	for _, service := range services.Resources {
-		if service.DeploymentName != nil && service.DeploymentName == cmd.Options[0] {
+		if service.DeploymentName != "" && service.DeploymentName == cmd.Options[0] {
 			serviceGuid = service.GUIDAtTenant
 			break
 		}
@@ -190,9 +193,11 @@ func getServiceIDPlanID(servicename string) (*ProvisonPayload, error) {
 	instance, err := sb.Instance(servicename)
 	CheckErr(err)
 
-	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: instance.Metadata.SpaceGUID, OrganizationGUID: instance.Metadata.OrganizationGUID}
-	payload.Context.OrganizationID = instance.Metadata.OrganizationGUID
-	payload.Context.SpaceID = instance.Metadata.SpaceGUID
+	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: instance.Context.SpaceGUID, OrganizationGUID: instance.Context.OrganizationGUID}
+	payload.Context.Platform = "cloudfoundry"
+	payload.Context.OrganizationGUID = instance.Context.OrganizationGUID
+	payload.Context.SpaceGUID = instance.Context.SpaceGUID
+	payload.Context.InstanceName = servicename
 	return &payload, nil
 
 	return nil, errors.New("Service not found!")
@@ -246,19 +251,19 @@ func serviceImpl(serviceName string) {
 	} else {
 		fmt.Printf("Dashboard: %s\n", service.DashboardURL.(string))
 	}
-	if service.DeploymentName == nil {
+	if service.DeploymentName == "" {
 		fmt.Printf("Deployment name: \n")
 	} else {
-		fmt.Printf("Deployment name: %s\n", service.DeploymentName.(string))
+		fmt.Printf("Deployment name: %s\n", service.DeploymentName)
 	}
 	fmt.Printf("\n")
 	fmt.Printf("Status: %s\n", service.State)
 	fmt.Printf("Started: %s\n", service.CreatedAt)
 	fmt.Printf("Updated: %s\n", service.UpdatedAt)
 	fmt.Printf("\n")
-	fmt.Printf("Organization GUID: %s\n", service.Metadata.OrganizationGUID)
-	fmt.Printf("Space GUID: %s\n", service.Metadata.SpaceGUID)
-	fmt.Printf("Tenand ID: %s\n", service.Metadata.TenantID)
+	fmt.Printf("Organization GUID: %s\n", service.Context.OrganizationGUID)
+	fmt.Printf("Space GUID: %s\n", service.Context.SpaceGUID)
+	fmt.Printf("Tenant ID: %s\n", service.Metadata.TenantID)
 	fmt.Printf("\n")
 	if service.Metadata.UserParams == nil {
 		fmt.Printf("User params: {}\n")
@@ -325,8 +330,10 @@ func CreateService(cmd *Commandline) {
 		ServiceID:        catalog.Services[serviceID].ID,
 	}
 
-	data.Context.OrganizationID = orgID
-	data.Context.SpaceID = spaceID
+	data.Context.Platform = "cloudfoundry"
+	data.Context.OrganizationGUID = orgID
+	data.Context.SpaceGUID = spaceID
+	data.Context.InstanceName = serviceName
 
 	if cmd.Custom != "" {
 		data.Parameters = getJSONFromCustom(cmd.Custom)
@@ -400,23 +407,22 @@ func UpdateService(cmd *Commandline) {
 
 	sb := NewSBClient()
 
-	_, err := sb.Instance(cmd.Options[0])
+	instance, err := sb.Instance(cmd.Options[0])
 	CheckErr(err)
 
-	data, err := getServiceIDPlanID(cmd.Options[0])
-	CheckErr(err)
+	var payload = UpdatePayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID}
 
-	var payload = UpdatePayload{ServiceID: data.ServiceID, PlanID: data.PlanID}
+	orgGUID := instance.Context.OrganizationGUID
+	spaceGUID := instance.Context.SpaceGUID
 
-	payload.PreviousValues.ServiceID = data.ServiceID
-	payload.PreviousValues.PlanID = data.PlanID
-	payload.PreviousValues.OrganizationID = data.OrganizationGUID
-	payload.PreviousValues.SpaceID = data.SpaceGUID
-	payload.Context.OrganizationID = data.OrganizationGUID
-	payload.Context.SpaceID = data.SpaceGUID
+	payload.PreviousValues.ServiceID = instance.ServiceGUID
+	payload.PreviousValues.PlanID = instance.PlanGUID
+	payload.PreviousValues.OrganizationID = orgGUID
+	payload.PreviousValues.SpaceID = spaceGUID
+	payload.Context = instance.Context
 
 	if cmd.Plan != "" {
-		planID, err := getPlanID(cmd.Plan, data.ServiceID)
+		planID, err := getPlanID(cmd.Plan, instance.ServiceGUID)
 		CheckErr(err)
 
 		payload.PlanID = planID
