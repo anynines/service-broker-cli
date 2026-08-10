@@ -193,14 +193,15 @@ func getServiceIDPlanID(servicename string) (*ProvisonPayload, error) {
 	instance, err := sb.Instance(servicename)
 	CheckErr(err)
 
-	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: instance.Context.SpaceGUID, OrganizationGUID: instance.Context.OrganizationGUID}
+	orgGUID := EnvOrganizationGUID(instance.Context.OrganizationGUID)
+	spaceGUID := EnvSpaceGUID(instance.Context.SpaceGUID)
+
+	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: spaceGUID, OrganizationGUID: orgGUID}
 	payload.Context.Platform = "cloudfoundry"
-	payload.Context.OrganizationGUID = instance.Context.OrganizationGUID
-	payload.Context.SpaceGUID = instance.Context.SpaceGUID
+	payload.Context.OrganizationGUID = orgGUID
+	payload.Context.SpaceGUID = spaceGUID
 	payload.Context.InstanceName = servicename
 	return &payload, nil
-
-	return nil, errors.New("Service not found!")
 }
 
 func Service(cmd *Commandline) {
@@ -322,6 +323,8 @@ func CreateService(cmd *Commandline) {
 
 	orgID, _ := newUUID()
 	spaceID, _ := newUUID()
+	orgID = EnvOrganizationGUID(orgID)
+	spaceID = EnvSpaceGUID(spaceID)
 
 	data := ProvisonPayload{
 		PlanID:           planID,
@@ -412,14 +415,16 @@ func UpdateService(cmd *Commandline) {
 
 	var payload = UpdatePayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID}
 
-	orgGUID := instance.Context.OrganizationGUID
-	spaceGUID := instance.Context.SpaceGUID
+	orgGUID := EnvOrganizationGUID(instance.Context.OrganizationGUID)
+	spaceGUID := EnvSpaceGUID(instance.Context.SpaceGUID)
 
 	payload.PreviousValues.ServiceID = instance.ServiceGUID
 	payload.PreviousValues.PlanID = instance.PlanGUID
 	payload.PreviousValues.OrganizationID = orgGUID
 	payload.PreviousValues.SpaceID = spaceGUID
 	payload.Context = instance.Context
+	payload.Context.OrganizationGUID = orgGUID
+	payload.Context.SpaceGUID = spaceGUID
 
 	if cmd.Plan != "" {
 		planID, err := getPlanID(cmd.Plan, instance.ServiceGUID)

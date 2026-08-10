@@ -156,6 +156,8 @@ $ SB_HOST="http://redis-service-broker.service.dc1.consul:3000/" SB_USERNAME="ad
 | SB_PASSWORD | The password |
 | SB_SKIP_SSL_VERIFY | If true SSL verification is skipped |
 | SB_TIMEOUT | HTTP Timeout in seconds (default: 15) |
+| SB_ORGANIZATION_GUID | Overrides the `organization_guid` sent on provision, update, and service-key requests (both as a top-level field and inside `context`). When unset, `create-service` generates a random UUID and `update-service` / `create-service-key` reuse the value the broker stored on the instance. |
+| SB_SPACE_GUID | Overrides the `space_guid` sent on provision, update, and service-key requests. Same fallback semantics as `SB_ORGANIZATION_GUID`. |
 
 
 ## Logging
