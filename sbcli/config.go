@@ -3,12 +3,9 @@ package sbcli
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/user"
-	"path"
 	"path/filepath"
 	"strconv"
 )
@@ -22,44 +19,24 @@ type Credentials struct {
 
 type Config struct {
 	Credentials
+	OrganizationGUID string `json:"organization_guid,omitempty"`
+	SpaceGUID        string `json:"space_guid,omitempty"`
 }
 
 const (
 	ConfigFile = ".sb"
 )
 
-func findConfig(dir string, recursive ...bool) (string, error) {
-	// check file
-	_, err := os.Stat(filepath.Join(dir, ConfigFile))
-	if err == nil {
-		return dir, nil
-	}
-
-	// if not found and root, return error
-	if dir == "/" || (len(recursive) > 0 && !recursive[0]) {
-		return "", errors.New("config: config not found")
-	}
-
-	// remove trailing slash
-	if len(dir) > 0 && dir[len(dir)-1] == '/' {
-		dir = dir[0 : len(dir)-1]
-	}
-
-	// split path and call function again
-	parent, _ := path.Split(dir)
-	return findConfig(parent)
-}
-
-func getConfig() (string, error) {
-	dir, _ := filepath.Abs(".")
-	config, err := findConfig(dir)
-
+// configPath returns the absolute path to the .sb config file in the
+// user's home directory. The config lives in $HOME so it follows the
+// user across shells and working directories, matching how `cf` and
+// similar CLIs persist their session state.
+func configPath() (string, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		config, err = findConfig(getUserHome(), false)
 		return "", err
 	}
-
-	return filepath.Join(config, ConfigFile), nil
+	return filepath.Join(home, ConfigFile), nil
 }
 
 func (c *Config) load() error {
@@ -79,40 +56,20 @@ func (c *Config) load() error {
 		return nil
 	}
 
-	file, err := getConfig()
+	file, err := configPath()
 	if err != nil {
 		return err
 	}
 
 	jsonFile, err := ioutil.ReadFile(file)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return errors.New("config: config not found")
+		}
 		return err
 	}
 
-	err = json.Unmarshal(jsonFile, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func testFolder(folder string) {
-	fmt.Print("Test: ", folder, " ... ")
-
-	file := filepath.Join(folder, ConfigFile)
-	f, err := os.Create(file)
-	defer f.Close()
-	CheckErr(err)
-
-	found, err := getConfig()
-	if err != nil {
-		fmt.Println("nope")
-	} else {
-		fmt.Println("found", found)
-	}
-
-	os.Remove(file)
+	return json.Unmarshal(jsonFile, c)
 }
 
 func (c *Config) save() error {
@@ -120,18 +77,11 @@ func (c *Config) save() error {
 	if err != nil {
 		return err
 	}
-
-	dir, _ := filepath.Abs(".")
-	err = ioutil.WriteFile(filepath.Join(dir, ConfigFile), configJSON, 0600)
+	file, err := configPath()
 	if err != nil {
-		// try to save in users home path
-		usr, err := user.Current()
-		if err != nil {
-			return err
-		}
-		err = ioutil.WriteFile(filepath.Join(usr.HomeDir, ConfigFile), configJSON, 0600)
+		return err
 	}
-	return nil
+	return ioutil.WriteFile(file, configJSON, 0600)
 }
 
 func LoadConfig() *Config {

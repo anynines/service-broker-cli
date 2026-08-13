@@ -21,6 +21,9 @@ type Commandline struct {
 	SkipSslValidation bool
 	Api               string
 	Username          string
+	Organization      string
+	Space             string
+	Quota             string
 }
 
 func (c *Commandline) Parse(options []string) (err error) {
@@ -68,6 +71,11 @@ func (c *Commandline) Parse(options []string) (err error) {
 	_ = flagSet.Bool("skip-ssl-validation", false, "")
 	api := flagSet.String("a", "", "")
 	username := flagSet.String("u", "", "")
+	organization := flagSet.String("o", "", "")
+	space := flagSet.String("s", "", "")
+	var quota string
+	flagSet.StringVar(&quota, "q", "", "")
+	flagSet.StringVar(&quota, "quota", "", "")
 
 	flagSet.Parse(options[flagPos:])
 	c.Force = *force
@@ -80,6 +88,9 @@ func (c *Commandline) Parse(options []string) (err error) {
 	c.SkipSslValidation = flagSet.Lookup("skip-ssl-validation") != nil
 	c.Api = *api
 	c.Username = *username
+	c.Organization = *organization
+	c.Space = *space
+	c.Quota = quota
 
 	return
 }

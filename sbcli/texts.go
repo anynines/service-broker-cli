@@ -140,12 +140,56 @@ func GetHelpText(command string) string {
 			"\n" +
 			"ALIAS:\n" +
 			"   lo\n"
-	case "api", "t":
+	case "api":
 		return "NAME:\n" +
 			"   api - Set or view the api\n" +
 			"\n" +
 			"USAGE:\n" +
 			"   sb api\n"
+	case "target", "t":
+		return "NAME:\n" +
+			"   target - Set or view the targeted organization and space\n" +
+			"\n" +
+			"USAGE:\n" +
+			"   sb target [-o ORG_GUID] [-s SPACE_GUID]\n" +
+			"\n" +
+			"   With no flags, prints the currently targeted API endpoint, user,\n" +
+			"   organization GUID, and space GUID. With -o and/or -s, updates the\n" +
+			"   values persisted in the .sb config file. These GUIDs are then sent\n" +
+			"   on provision, update, and service-key requests.\n" +
+			"\n" +
+			"ALIAS:\n" +
+			"   t\n" +
+			"\n" +
+			"OPTIONS:\n" +
+			"   -o      Organization GUID to target\n" +
+			"   -s      Space GUID to target\n"
+	case "create-org", "co":
+		return "NAME:\n" +
+			"   create-org - No-op, provided for cf CLI compatibility\n" +
+			"\n" +
+			"USAGE:\n" +
+			"   sb create-org ORG [-q ORG_QUOTA]\n" +
+			"\n" +
+			"   The Service Broker has no concept of organizations. This command\n" +
+			"   accepts the same arguments as `cf create-org`, logs a success\n" +
+			"   line, and returns OK — so test scripts that call cf can be\n" +
+			"   pointed at sb without editing.\n" +
+			"\n" +
+			"ALIAS:\n" +
+			"   co\n"
+	case "create-space", "csp":
+		return "NAME:\n" +
+			"   create-space - No-op, provided for cf CLI compatibility\n" +
+			"\n" +
+			"USAGE:\n" +
+			"   sb create-space SPACE [-o ORG] [-q QUOTA]\n" +
+			"\n" +
+			"   Same rationale as create-org: accepts the same arguments as\n" +
+			"   `cf create-space`, logs a success line, and returns OK.\n" +
+			"\n" +
+			"ALIAS:\n" +
+			"   csp\n"
 	case "marketplace", "m":
 		return "NAME:\n" +
 			"   marketplace - List available offerings in the marketplace\n" +

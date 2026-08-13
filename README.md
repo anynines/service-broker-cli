@@ -80,10 +80,14 @@ COMMANDS
     help                  h           Show help
 
     api                               Set or view target api url
+    target                t           Set or view the targeted organization and space
     login                 l           Login to the target
     logout                lo          Logout from the target
     auth                              Authenticate to the target
     version               -v          Print the version
+
+    create-org            co          No-op logger, provided for cf CLI compatibility
+    create-space          csp         No-op logger, provided for cf CLI compatibility
 
     marketplace           m           List available offerings in the marketplace
     services              s           List all service instances in the target space
@@ -113,14 +117,40 @@ In contrast to to Cloud Foundry CLI the `sb create-service-key` returns the cred
 
 ## Target and login
 
-Use `sb target` to target a Service Broker.
+Use `sb api` to point the CLI at a Service Broker:
 
 ```bash
-$ sb target https://localhost:3001
+$ sb api https://localhost:3001
 ```
 
 SB CLI supports TLS encrypted communication.
 To login you can use either `sb login` as an interactive operation or `sb auth` for scripting.
+
+### Targeting an organization and space
+
+`sb target` mirrors `cf target`: it sets the organization and space
+GUIDs that get sent on provision, update, and service-key requests.
+These are persisted in the `.sb` config file, so subsequent commands
+pick them up automatically.
+
+```bash
+$ sb target -o acme-tenant -s prod-namespace
+API endpoint:      https://localhost:3001
+User:              admin
+Organization GUID: acme-tenant
+Space GUID:        prod-namespace
+```
+
+`sb target` with no flags just prints the current context.
+
+### cf CLI compatibility
+
+Test scripts written against the Cloud Foundry CLI can be pointed at
+`sb` without editing. `sb target -o ORG -s SPACE`, `sb create-org ORG`,
+and `sb create-space SPACE [-o ORG]` all accept the same argument shape
+as their `cf` counterparts. `create-org` and `create-space` are no-ops
+that log a success line — the Service Broker has no concept of orgs or
+spaces, so nothing is created server-side.
 
 `sb login` also supports the flags `-a` for API, `-u` for the username and `-p` for the password.
 So you can use
@@ -156,6 +186,8 @@ $ SB_HOST="http://redis-service-broker.service.dc1.consul:3000/" SB_USERNAME="ad
 | SB_PASSWORD | The password |
 | SB_SKIP_SSL_VERIFY | If true SSL verification is skipped |
 | SB_TIMEOUT | HTTP Timeout in seconds (default: 15) |
+| SB_ORGANIZATION_GUID | Overrides the `organization_guid` sent on provision, update, and service-key requests. Wins over the value persisted by `sb target -o`. When neither is set, `create-service` generates a random UUID and `update-service` / `create-service-key` reuse the value the broker stored on the instance. |
+| SB_SPACE_GUID | Overrides the `space_guid` sent on the same requests. Same precedence as `SB_ORGANIZATION_GUID`: env wins over `sb target -s`, and both win over the CLI's random-UUID / instance-echo fallback. |
 
 
 ## Logging
