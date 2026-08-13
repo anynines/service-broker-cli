@@ -22,6 +22,8 @@ type Credentials struct {
 
 type Config struct {
 	Credentials
+	OrganizationGUID string `json:"organization_guid,omitempty"`
+	SpaceGUID        string `json:"space_guid,omitempty"`
 }
 
 const (

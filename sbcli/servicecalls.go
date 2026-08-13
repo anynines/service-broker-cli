@@ -193,8 +193,8 @@ func getServiceIDPlanID(servicename string) (*ProvisonPayload, error) {
 	instance, err := sb.Instance(servicename)
 	CheckErr(err)
 
-	orgGUID := EnvOrganizationGUID(instance.Context.OrganizationGUID)
-	spaceGUID := EnvSpaceGUID(instance.Context.SpaceGUID)
+	orgGUID := TargetedOrganizationGUID(instance.Context.OrganizationGUID)
+	spaceGUID := TargetedSpaceGUID(instance.Context.SpaceGUID)
 
 	payload := ProvisonPayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID, SpaceGUID: spaceGUID, OrganizationGUID: orgGUID}
 	payload.Context.Platform = "cloudfoundry"
@@ -323,8 +323,8 @@ func CreateService(cmd *Commandline) {
 
 	orgID, _ := newUUID()
 	spaceID, _ := newUUID()
-	orgID = EnvOrganizationGUID(orgID)
-	spaceID = EnvSpaceGUID(spaceID)
+	orgID = TargetedOrganizationGUID(orgID)
+	spaceID = TargetedSpaceGUID(spaceID)
 
 	data := ProvisonPayload{
 		PlanID:           planID,
@@ -415,8 +415,8 @@ func UpdateService(cmd *Commandline) {
 
 	var payload = UpdatePayload{ServiceID: instance.ServiceGUID, PlanID: instance.PlanGUID}
 
-	orgGUID := EnvOrganizationGUID(instance.Context.OrganizationGUID)
-	spaceGUID := EnvSpaceGUID(instance.Context.SpaceGUID)
+	orgGUID := TargetedOrganizationGUID(instance.Context.OrganizationGUID)
+	spaceGUID := TargetedSpaceGUID(instance.Context.SpaceGUID)
 
 	payload.PreviousValues.ServiceID = instance.ServiceGUID
 	payload.PreviousValues.PlanID = instance.PlanGUID

@@ -21,6 +21,74 @@ func Logout(cmd *Commandline) {
 	fmt.Println("OK")
 }
 
+// Target sets or displays the currently targeted organization and space
+// GUIDs. Mirrors `cf target -o ORG -s SPACE` so scripts can swap `cf`
+// for `sb` and keep working. With no flags it just prints the current
+// context.
+func Target(cmd *Commandline) {
+	c := Config{}
+	c.load()
+
+	changed := false
+	if cmd.Organization != "" {
+		c.OrganizationGUID = cmd.Organization
+		changed = true
+	}
+	if cmd.Space != "" {
+		c.SpaceGUID = cmd.Space
+		changed = true
+	}
+	if changed {
+		if err := c.save(); err != nil {
+			CheckErr(err)
+		}
+	}
+
+	if c.Host == "" {
+		fmt.Println("No api endpoint set!")
+		return
+	}
+	fmt.Printf("API endpoint:      %s\n", c.Host)
+	fmt.Printf("User:              %s\n", c.Username)
+	fmt.Printf("Organization GUID: %s\n", c.OrganizationGUID)
+	fmt.Printf("Space GUID:        %s\n", c.SpaceGUID)
+}
+
+// CreateOrg is a no-op that logs a cf-shaped success line. The Service
+// Broker has no concept of orgs; this exists so test scripts that call
+// `cf create-org ORG` can be pointed at `sb` without editing.
+func CreateOrg(cmd *Commandline) {
+	if len(cmd.Options) < 1 {
+		CheckErr(errors.New("Missing arguments!"), GetHelpText("create-org"))
+	}
+	who := currentUser()
+	fmt.Printf("Creating org %s as %s...\n", cmd.Options[0], who)
+	fmt.Println("OK")
+}
+
+// CreateSpace is a no-op that logs. Same rationale as CreateOrg.
+func CreateSpace(cmd *Commandline) {
+	if len(cmd.Options) < 1 {
+		CheckErr(errors.New("Missing arguments!"), GetHelpText("create-space"))
+	}
+	who := currentUser()
+	if cmd.Organization != "" {
+		fmt.Printf("Creating space %s in org %s as %s...\n", cmd.Options[0], cmd.Organization, who)
+	} else {
+		fmt.Printf("Creating space %s as %s...\n", cmd.Options[0], who)
+	}
+	fmt.Println("OK")
+}
+
+func currentUser() string {
+	conf := Config{}
+	conf.load()
+	if conf.Username == "" {
+		return "-"
+	}
+	return conf.Username
+}
+
 func Api(cmd *Commandline) {
 	c := Config{}
 	c.load()
