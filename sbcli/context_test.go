@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-// withIsolatedConfig points the .sb config lookup at a temp directory
-// and clears the SB_HOST/USERNAME/PASSWORD envs so `Config.load()` reads
-// from a real file, not from env credentials. Returns the directory so
-// tests can seed a .sb file in it.
+// withIsolatedConfig points $HOME at a temp directory and clears the
+// SB_HOST/USERNAME/PASSWORD envs so `Config.load()` reads from a real
+// file, not from env credentials. Returns the directory so tests can
+// seed a .sb file in it.
 func withIsolatedConfig(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Chdir(dir)
+	t.Setenv("HOME", dir)
 	t.Setenv("SB_HOST", "")
 	t.Setenv("SB_USERNAME", "")
 	t.Setenv("SB_PASSWORD", "")
